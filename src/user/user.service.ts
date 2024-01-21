@@ -144,7 +144,7 @@ export class UserService {
       .where('chatId', chatId);
   }
 
-  async getChats(email: string): Promise<Chat[]> {
+  async getChatsByEmail(email: string): Promise<Chat[]> {
     const user = await this.findOne(email);
     if (!user) {
       throw new HttpException('User not found', 404);
@@ -162,7 +162,7 @@ export class UserService {
     if (!user) {
       throw new HttpException('User not found', 404);
     }
-    const chats = await this.getChats(email);
+    const chats = await this.getChatsByEmail(email);
     const result = [];
     for (const chat of chats) {
       const count = await this.db<Message>('messages')
@@ -317,4 +317,140 @@ export class UserService {
 
     return new StreamableFile(file);
   }
+
+  async getAllAttachments() {
+    const result = await this.db<Attachment>('attachments').select('*');
+    if (result.length === 0) {
+      throw new HttpException('No attachments found', 404);
+    }
+    return result;
+  }
+
+  async getAllUsers() {
+    const result = await this.db<User>('users').select('*');
+    if (result.length === 0) {
+      throw new HttpException('No users found', 404);
+    }
+    return result;
+  }
+
+  async getUserById(id: number) {
+    const result = await this.db<User>('users').select('*').where('id', id);
+    if (result.length === 0) {
+      throw new HttpException('User not found', 404);
+    }
+    return result;
+  }
+
+  async getAttachmentsByUserId(userId: number) {
+    const result = await this.db<Attachment>('attachments')
+      .select('*')
+      .where('userId', userId);
+    if (result.length === 0) {
+      throw new HttpException('No attachments found', 404);
+    }
+    return result;
+  }
+
+  async deleteUser(id: number) {
+    const user = await this.db<User>('users').select('*').where('id', id);
+    if (user.length === 0) {
+      throw new HttpException('User not found', 404);
+    }
+    await this.db<User>('users').delete().where('id', id);
+    if (await this.db<User>('users').select('*').where('id', id)) {
+      throw new HttpException('Error deleting user', 500);
+    }
+    return {
+      status: HttpStatus.OK,
+    };
+  }
+
+  async updateUser(id: number, body: Partial<User>) {
+    const user = await this.db<User>('users').select('*').where('id', id);
+    if (user.length === 0) {
+      throw new HttpException('User not found', 404);
+    }
+    await this.db<User>('users').update(body).where('id', id);
+    return await this.getUserById(id);
+  }
+
+  async getAllChats() {
+    const result = await this.db<Chat>('chats').select('*');
+    if (result.length === 0) {
+      throw new HttpException('No chats found', 404);
+    }
+    return result;
+  }
+
+  async getChatById(id: number) {
+    const result = await this.db<Chat>('chats').select('*').where('id', id);
+    if (result.length === 0) {
+      throw new HttpException('Chat not found', 404);
+    }
+    return result;
+  }
+
+  async deleteChat(id: number) {
+    const chat = await this.db<Chat>('chats').select('*').where('id', id);
+    if (chat.length === 0) {
+      throw new HttpException('Chat not found', 404);
+    }
+    await this.db<Chat>('chats').delete().where('id', id);
+    if (await this.db<Chat>('chats').select('*').where('id', id)) {
+      throw new HttpException('Error deleting chat', 500);
+    }
+    return {
+      status: HttpStatus.OK,
+    };
+  }
+
+  async updateChat(id: number, body: Partial<Chat>) {
+    const chat = await this.db<Chat>('chats').select('*').where('id', id);
+    if (chat.length === 0) {
+      throw new HttpException('Chat not found', 404);
+    }
+    await this.db<Chat>('chats').update(body).where('id', id);
+    return await this.getChatById(id);
+  }
+
+  async getAllMessages() {
+    const result = await this.db<Message>('messages').select('*');
+    if (result.length === 0) {
+      throw new HttpException('No messages found', 404);
+    }
+    return result;
+  }
+
+  async getMessageById(id: number) {
+    const result = await this.db<Message>('messages').select('*').where('id', id);
+    if (result.length === 0) {
+      throw new HttpException('Message not found', 404);
+    }
+    return result;
+  }
+
+  async deleteMessage(id: number) {
+    const message = await this.db<Message>('messages').select('*').where('id', id);
+    if (message.length === 0) {
+      throw new HttpException('Message not found', 404);
+    }
+    await this.db<Message>('messages').delete().where('id', id);
+    if (await this.db<Message>('messages').select('*').where('id', id)) {
+      throw new HttpException('Error deleting message', 500);
+    }
+    return {
+      status: HttpStatus.OK,
+    };
+  }
+
+  async updateMessage(id: number, body: Partial<Message>) {
+    const message = await this.db<Message>('messages').select('*').where('id', id);
+    if (message.length === 0) {
+      throw new HttpException('Message not found', 404);
+    }
+    await this.db<Message>('messages').update(body).where('id', id);
+    return await this.getMessageById(id);
+  }
+
 }

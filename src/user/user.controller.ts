@@ -38,6 +38,11 @@ export class UserController {
     return this.userService.createUser(user);
   }
 
+  @Get('all')
+  async getAllUsers() {
+    return this.userService.getAllUsers();
+  }
+
   @Post('message/create')
   async createMessage(@Body() body: CreateMessageDto) {
     return this.userService.createMessage(
@@ -59,7 +64,7 @@ export class UserController {
 
   @Post('chat/all')
   async getChats(@Body() body: GetChatDto) {
-    return this.userService.getChats(body.email);
+    return this.userService.getChatsByEmail(body.email);
   }
 
   @Post('attachment/upload')
@@ -79,25 +84,6 @@ export class UserController {
     return this.userService.createAttachment(body, file);
   }
 
-  @Delete('attachment/:id')
-  async deleteAttachment(@Req() req) {
-    return this.userService.deleteAttachment(Number(req.params.id));
-  }
-
-  @Get('attachment/:id')
-  async getAttachment(@Req() req) {
-    return this.userService.getAttachmentById(Number(req.params.id));
-  }
-
-  @Get('attachment/download/:id')
-  getFile(@Res({ passthrough: true }) res: Response, @Param('id') id: string) {
-    res.set({
-      'Content-Type': 'application/json',
-      'Content-Disposition': 'attachment; filename="package.json"',
-    });
-    return this.userService.downloadAttachment(Number(id), res);
-  }
-
   @Patch('attachment/:id')
   @UseInterceptors(FileInterceptor('file'))
   async updateAttachment(
@@ -114,5 +100,30 @@ export class UserController {
     file: Express.Multer.File,
   ) {
     return this.userService.updateAttachment(Number(id), body, file);
+  }
+
+  @Delete('attachment/:id')
+  async deleteAttachment(@Req() req) {
+    return this.userService.deleteAttachment(Number(req.params.id));
+  }
+
+  @Get('attachment/:id')
+  async getAttachment(@Req() req) {
+    return this.userService.getAttachmentById(Number(req.params.id));
+  }
+
+  @Get('attachment/download/:id')
+  getFile(@Res({ passthrough: true }) res: Response, @Param('id') id: string) {
+    return this.userService.downloadAttachment(Number(id), res);
+  }
+
+  @Get('attachment/all')
+  async getAllAttachments() {
+    return this.userService.getAllAttachments();
+  }
+
+  @Get('attachment')
+  async getAttachments(@Req() req) {
+    return this.userService.getAttachmentsByUserId(Number(req.query.id));
   }
 }
