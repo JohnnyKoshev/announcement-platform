@@ -9,6 +9,7 @@ import {
   Patch,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
@@ -21,7 +22,12 @@ import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { CreateOfferDto } from 'src/user/individual/dto/create-offer.dto';
 import { CreateAdvertisementDto } from 'src/user/juridic/dto/create-ad.dto';
 import { CreateChatDto } from 'src/user/dto/create-chat.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { RoleGuard } from 'src/auth/role.guard';
 
+@Roles('admin')
+@UseGuards(JwtAuthGuard, RoleGuard)
 @Controller('admin')
 export class AdminController {
   constructor(private adminService: AdminService) {}

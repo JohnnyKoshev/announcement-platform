@@ -5,6 +5,7 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  WsException,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Socket, Server } from 'socket.io';
@@ -32,13 +33,13 @@ export class ChatGateway
     } = JSON.parse(payload);
     if (!body.email) {
       client.emit('invalidEmail');
-      return;
+      throw new WsException('Invalid email');
     }
     console.log('check');
     const user = await this.userService.findOne(body.email);
     if (!user) {
       client.emit('unauthorized');
-      return;
+      throw new WsException('Unauthorized');
     }
     this.userSocketMapping.set(user.id.toString(), client.id);
     this.socketUserMapping.set(client.id, user.id.toString());
@@ -52,7 +53,7 @@ export class ChatGateway
     console.log(this.socketUserMapping);
     if (!this.socketUserMapping.has(client.id)) {
       client.emit('unauthorized');
-      return;
+      throw new WsException('Unauthorized');
     }
     const body: {
       message: string;
@@ -62,13 +63,13 @@ export class ChatGateway
     console.log(body);
     if (!body.message || !body.senderEmail || !body.receiverEmail) {
       client.emit('invalidMessage');
-      return;
+      throw new WsException('Invalid message');
     }
     const senderDb = await this.userService.findOne(body.senderEmail);
     const receiverDb = await this.userService.findOne(body.receiverEmail);
     if (!senderDb || !receiverDb) {
       client.emit('userNotFound');
-      return;
+      throw new WsException('User not found');
     }
     const replyPayload = JSON.stringify({
       ...body,
@@ -91,6 +92,7 @@ export class ChatGateway
       return;
     }
     client.emit('errorSendingMessage');
+    throw new WsException('Error sending message');
   }
 
   afterInit(server: Server) {

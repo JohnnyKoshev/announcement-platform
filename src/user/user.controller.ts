@@ -13,6 +13,7 @@ import {
   Patch,
   Param,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './user.service';
@@ -23,7 +24,12 @@ import { FindChatDto } from './dto/find-chat.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateAttachmentDto } from './dto/update-attachment.dto';
 import type { Response } from 'express';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { RoleGuard } from 'src/auth/role.guard';
 
+@Roles('juridic', 'individual', 'admin')
+@UseGuards(JwtAuthGuard, RoleGuard)
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}

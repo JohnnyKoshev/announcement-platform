@@ -25,10 +25,15 @@ export class AuthService {
     if (!userDb) {
       throw new UnauthorizedException();
     }
-    console.log(user);
-    const payload = { email: user.email, sub: userDb.id };
+    console.log(userDb);
+    const payload = {
+      email: user.email,
+      sub: userDb.id,
+      role: userDb.userType,
+    };
     return {
       accessToken: this.jwtService.sign(payload),
+      user: userDb,
     };
   }
 

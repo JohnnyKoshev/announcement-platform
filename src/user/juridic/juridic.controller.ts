@@ -7,11 +7,17 @@ import {
   Patch,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { JuridicService } from './juridic.service';
 import { CreateAdvertisementDto } from './dto/create-ad.dto';
 import { UpdateAdvertisementDto } from './dto/update-ad.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { RoleGuard } from 'src/auth/role.guard';
 
+@Roles('juridic', 'admin')
+@UseGuards(JwtAuthGuard, RoleGuard)
 @Controller('juridic')
 export class JuridicController {
   constructor(private juridicService: JuridicService) {}

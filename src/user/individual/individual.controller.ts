@@ -6,11 +6,17 @@ import {
   Get,
   Delete,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { IndividualService } from './individual.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Roles } from 'src/auth/roles.decorator';
+import { RoleGuard } from 'src/auth/role.guard';
 
+@Roles('individual', 'admin')
+@UseGuards(JwtAuthGuard, RoleGuard)
 @Controller('individual')
 export class IndividualController {
   constructor(private individualService: IndividualService) {}
