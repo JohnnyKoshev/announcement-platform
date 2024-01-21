@@ -1,4 +1,4 @@
-import { IsDate, IsNumber, IsString } from 'class-validator';
+import { IsDate, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateAdvertisementDto {
   @IsNumber()
@@ -9,6 +9,7 @@ export class CreateAdvertisementDto {
   readonly description: string;
   @IsNumber()
   readonly categoryId: number;
-  //   @IsDate()
-  //   readonly expirationDate: Date;
+  @IsDate()
+  @IsOptional()
+  readonly expirationDate: Date;
 }

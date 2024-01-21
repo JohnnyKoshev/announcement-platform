@@ -100,15 +100,16 @@ model Chat {
 }
 
 model Attachment {
-  id             Int            @id @default(autoincrement())
-  associatedId   Int
-  fileUrl        String
-  attachmentType AttachmentType
-  uploadDate     DateTime       @default(now())
-  advertisement  Advertisement? @relation(fields: [associatedId], references: [id], map: "Attachments_advertisement_fkey")
-  offer          Offer?         @relation(fields: [associatedId], references: [id], map: "Attachments_offer_fkey")
-  User           User?          @relation(fields: [userId], references: [id])
-  userId         Int?
+  id              Int            @id @default(autoincrement())
+  advertisementId Int?
+  offerId         Int?
+  fileUrl         String
+  attachmentType  AttachmentType
+  uploadDate      DateTime       @default(now())
+  advertisement   Advertisement? @relation(fields: [advertisementId], references: [id])
+  offer           Offer?         @relation(fields: [offerId], references: [id])
+  User            User?          @relation(fields: [userId], references: [id])
+  userId          Int?
 
   @@map("attachments")
 }

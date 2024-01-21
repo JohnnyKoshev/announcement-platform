@@ -2,9 +2,10 @@
 https://docs.nestjs.com/providers#services
 */
 
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Advertisement, Category, Offer } from '@prisma/client';
 import { DATABASE, Database } from 'src/database/database.service';
+import { UserService } from '../user.service';
 
 interface IAdvertisement {
   id: number;
@@ -17,7 +18,10 @@ interface IAdvertisement {
 }
 @Injectable()
 export class JuridicService {
-  constructor(@Inject(DATABASE) private db: Database) {}
+  constructor(
+    @Inject(DATABASE) private db: Database,
+    private userService: UserService,
+  ) {}
 
   async createAdvertisement(body) {
     const advertisement = {
@@ -28,17 +32,20 @@ export class JuridicService {
       creationDate: new Date(),
       categoryId: body.categoryId,
     };
-    if (
-      !(await this.db<Advertisement>('advertisements')
-        .insert(advertisement)
-        .returning('id'))
-    ) {
+    const newAdId = await this.db<Advertisement>('advertisements')
+      .insert(advertisement)
+      .returning('id');
+    if (!newAdId[0].id) {
       throw new HttpException('Error creating advertisement', 500);
     }
     const { categoryId, ...rest } = advertisement;
     return {
       ...rest,
       category: await this.getCategoryById(body.categoryId),
+      attachments: await this.userService.getAttachmentsByAssociatedId(
+        newAdId[0].id,
+        'advertisement',
+      ),
     };
   }
 
@@ -67,6 +74,10 @@ export class JuridicService {
     return {
       ...rest,
       category: await this.getCategoryById(categoryId),
+      attachments: await this.userService.getAttachmentsByAssociatedId(
+        id,
+        'advertisement',
+      ),
     };
   }
 
@@ -87,6 +98,10 @@ export class JuridicService {
       ads.push({
         ...rest,
         category: await this.getCategoryById(ad.categoryId),
+        attachments: await this.userService.getAttachmentsByAssociatedId(
+          ad.id,
+          'advertisement',
+        ),
       });
     }
     return ads;
@@ -127,10 +142,14 @@ export class JuridicService {
     return {
       ...rest,
       category: await this.getCategoryById(categoryId),
+      attachments: await this.userService.getAttachmentsByAssociatedId(
+        id,
+        'advertisement',
+      ),
     };
   }
 
-  async deleteAdvertisement(id: number): Promise<void> {
+  async deleteAdvertisement(id: number) {
     if (
       !(await this.db<Advertisement>('advertisements')
         .select('*')
@@ -140,13 +159,20 @@ export class JuridicService {
       throw new HttpException('Advertisement not found', 404);
     }
 
-    const resultId = await this.db<Advertisement>('advertisements')
-      .delete()
-      .where('id', id)
-      .returning('id');
-    if (!resultId) {
+    await this.db<Advertisement>('advertisements').delete().where('id', id);
+
+    if (
+      await this.db<Advertisement>('advertisements')
+        .select('*')
+        .where('id', id)
+        .first()
+    ) {
       throw new HttpException('Error deleting advertisement', 500);
     }
+
+    return {
+      status: HttpStatus.OK,
+    };
   }
 
   async getTopOffers(paginationNumber: number): Promise<Offer[]> {
@@ -159,6 +185,16 @@ export class JuridicService {
     if (result.length === 0) {
       throw new HttpException('No offers found', 404);
     }
+    const offers = [];
+    for (const offer of result) {
+      offers.push({
+        ...offer,
+        attachments: await this.userService.getAttachmentsByAssociatedId(
+          offer.id,
+          'offer',
+        ),
+      });
+    }
     return result;
   }
 
@@ -168,6 +204,16 @@ export class JuridicService {
       .where('advertisementId', advertisementId);
     if (result.length === 0) {
       throw new HttpException('No offers found', 404);
+    }
+    const offers = [];
+    for (const offer of result) {
+      offers.push({
+        ...offer,
+        attachments: await this.userService.getAttachmentsByAssociatedId(
+          offer.id,
+          'offer',
+        ),
+      });
     }
     return result;
   }

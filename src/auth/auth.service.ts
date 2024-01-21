@@ -33,6 +33,6 @@ export class AuthService {
   }
 
   async register(body): Promise<Partial<User>> {
-    return await this.userService.create(body);
+    return await this.userService.createUser(body);
   }
 }

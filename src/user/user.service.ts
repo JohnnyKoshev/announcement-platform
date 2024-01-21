@@ -1,8 +1,26 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
-import { Chat, Message, User } from '@prisma/client';
+import {
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  StreamableFile,
+} from '@nestjs/common';
+import {
+  Attachment,
+  AttachmentType,
+  Chat,
+  Message,
+  User,
+} from '@prisma/client';
+import type { Response } from 'express';
 import { DATABASE, Database } from 'src/database/database.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { UploadAttachmentDto } from './dto/upload-attachment.dto';
+import { UpdateAttachmentDto } from './dto/update-attachment.dto';
 
 @Injectable()
 export class UserService {
@@ -16,13 +34,12 @@ export class UserService {
     return result;
   }
 
-  async create(user: CreateUserDto): Promise<Partial<User>> {
+  async createUser(user: CreateUserDto): Promise<Partial<User>> {
     if (await this.findOne(user.email)) {
       throw new HttpException('User already exists', 409);
     }
 
     const { password, ...rest } = user;
-    console.log(rest);
     const newUser: Partial<User> = {
       ...rest,
       passwordHash: await bcrypt.hash(password, 10),
@@ -95,8 +112,6 @@ export class UserService {
     if (!firstUser || !secondUser) {
       throw new HttpException('User not found', 404);
     }
-    console.log(firstUser);
-    console.log(secondUser);
     const result = await this.db<Chat>('chats')
       .select('*')
       .where('firstUserId', firstUser.id)
@@ -167,5 +182,139 @@ export class UserService {
       });
     }
     return result;
+  }
+
+  async createAttachment(body, file: Express.Multer.File) {
+    if (!body.advertisementId && !body.offerId)
+      throw new HttpException('Advertisement or offer id not provided', 400);
+    const filesDir = path.join(__dirname, '../../src', 'files');
+    if (!fs.existsSync(filesDir)) {
+      fs.mkdirSync(filesDir);
+    }
+    const extension = '.' + file.mimetype.split('/')[1];
+    const uniqueFilename = uuidv4() + extension;
+    const filePath = path.join(filesDir, uniqueFilename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const newAttachment = {
+      fileUrl: filePath,
+      advertisementId: body.advertisementId ? body.advertisementId : null,
+      offerId: body.offerId ? body.offerId : null,
+      attachmentType: body.attachmentType,
+      uploadDate: new Date(),
+      userId: body.userId,
+    };
+    const newAttachmentId = await this.db<Attachment>('attachments')
+      .insert(newAttachment)
+      .returning('id');
+    console.log(newAttachmentId);
+    const checkedAttachment = await this.db<Attachment>('attachments')
+      .select('*')
+      .where('id', newAttachmentId[0].id)
+      .first();
+    if (!checkedAttachment) {
+      throw new HttpException('Error creating attachment', 500);
+    }
+    return checkedAttachment;
+  }
+
+  async deleteAttachment(id: number) {
+    const attachment = await this.db<Attachment>('attachments')
+      .select('*')
+      .where('id', id)
+      .first();
+
+    if (!attachment) throw new HttpException('Attachment not found', 404);
+
+    fs.unlinkSync(attachment.fileUrl);
+
+    await this.db<Attachment>('attachments').delete().where('id', id);
+
+    if (
+      await this.db<Attachment>('attachments')
+        .select('*')
+        .where('id', id)
+        .first()
+    ) {
+      throw new HttpException('Error deleting attachment', 500);
+    }
+    return {
+      status: HttpStatus.OK,
+    };
+  }
+
+  async getAttachmentById(id: number) {
+    const attachment = await this.db<Attachment>('attachments')
+      .select('*')
+      .where('id', id)
+      .first();
+
+    if (!attachment) throw new HttpException('Attachment not found', 404);
+
+    return attachment;
+  }
+
+  async updateAttachment(
+    id: number,
+    body: UpdateAttachmentDto,
+    file: Express.Multer.File,
+  ) {
+    await this.getAttachmentById(id);
+
+    const filesDir = path.join(__dirname, '..', 'files');
+    if (!fs.existsSync(filesDir)) {
+      fs.mkdirSync(filesDir);
+    }
+    const extension = '.' + file.mimetype.split('/')[1];
+    const uniqueFilename = uuidv4() + extension;
+    const filePath = path.join(filesDir, uniqueFilename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    const attachment = await this.db<Attachment>('attachments')
+      .select('*')
+      .where('id', id)
+      .first();
+
+    if (!attachment) throw new HttpException('Attachment not found', 404);
+
+    fs.unlinkSync(attachment.fileUrl);
+
+    const newAttachment = {
+      fileUrl: filePath,
+    };
+
+    await this.db<Attachment>('attachments')
+      .update(newAttachment)
+      .where('id', id);
+
+    return newAttachment;
+  }
+
+  async getAttachmentsByAssociatedId(
+    associatedId: number,
+    attachmentType: AttachmentType,
+  ) {
+    const attachments = await this.db<Attachment>('attachments')
+      .select('*')
+      .where(
+        `${attachmentType === 'advertisement' ? 'advertisementId' : 'offerId'}`,
+        associatedId,
+      );
+    if (attachments.length === 0) {
+      return [];
+    }
+    return attachments;
+  }
+
+  async downloadAttachment(id: number, res: Response) {
+    const attachment = await this.getAttachmentById(id);
+    const file = fs.createReadStream(attachment.fileUrl);
+
+    res.set({
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="${attachment.fileUrl.split('\\').pop()}"`,
+    });
+
+    return new StreamableFile(file);
   }
 }
