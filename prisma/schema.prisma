@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int             @id @default(autoincrement())
+  name             String?
+  email            String          @unique
+  passwordHash     String
+  userType         UserType
+  registrationDate DateTime        @default(now())
+  advertisements   Advertisement[]
+  offers           Offer[]
+  sentMessages     Message[]       @relation("messageSender")
+  receivedMessages Message[]       @relation("messageRecipient")
+  attachments      Attachment[]
+  ChatAsFirstUser  Chat[]          @relation("firstUserId")
+  ChatAsSecondUser Chat[]          @relation("secondUserId")
+
+  @@map("users")
+}
+
+model Advertisement {
+  id             Int          @id @default(autoincrement())
+  userId         Int
+  title          String
+  description    String
+  categoryId     Int
+  active         Boolean      @default(true)
+  expirationDate DateTime?
+  creationDate   DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  offers         Offer[]
+  attachments    Attachment[]
+  Category       Category     @relation(fields: [categoryId], references: [id])
+
+  @@map("advertisements")
+}
+
+model Offer {
+  id                      Int           @id @default(autoincrement())
+  adId                    Int
+  userId                  Int
+  description             String
+  price                   Float
+  isRead                  Boolean       @default(false)
+  estimatedCompletionDate DateTime?
+  creationDate            DateTime      @default(now())
+  advertisement           Advertisement @relation(fields: [adId], references: [id])
+  user                    User          @relation(fields: [userId], references: [id])
+  Attachment              Attachment[]
+
+  @@map("offers")
+}
+
+model Category {
+  id          Int             @id @default(autoincrement())
+  name        String
+  description String?
+  ads         Advertisement[]
+
+  @@map("categories")
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  chatId      Int
+  senderId    Int
+  recipientId Int
+  content     String
+  sentDate    DateTime @default(now())
+  sender      User     @relation("messageSender", fields: [senderId], references: [id])
+  recipient   User     @relation("messageRecipient", fields: [recipientId], references: [id])
+  chat        Chat     @relation(fields: [chatId], references: [id])
+
+  @@map("messages")
+}
+
+model Chat {
+  id              Int       @id @default(autoincrement())
+  firstUserId     Int
+  secondUserId    Int
+  firstUserEmail  String
+  secondUserEmail String
+  firstUser       User      @relation("firstUserId", fields: [firstUserId], references: [id])
+  secondUser      User      @relation("secondUserId", fields: [secondUserId], references: [id])
+  creationDate    DateTime  @default(now())
+  messages        Message[]
+
+  @@map("chats")
+}
+
+model Attachment {
+  id             Int            @id @default(autoincrement())
+  associatedId   Int
+  fileUrl        String
+  attachmentType AttachmentType
+  uploadDate     DateTime       @default(now())
+  advertisement  Advertisement? @relation(fields: [associatedId], references: [id], map: "Attachments_advertisement_fkey")
+  offer          Offer?         @relation(fields: [associatedId], references: [id], map: "Attachments_offer_fkey")
+  User           User?          @relation(fields: [userId], references: [id])
+  userId         Int?
+
+  @@map("attachments")
+}
+
+enum UserType {
+  juridic
+  individual
+  admin
+}
+
+enum AttachmentType {
+  advertisement
+  offer
+}
