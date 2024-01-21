@@ -76,6 +76,7 @@ model Message {
   senderId    Int
   recipientId Int
   content     String
+  isRead      Boolean  @default(false)
   sentDate    DateTime @default(now())
   sender      User     @relation("messageSender", fields: [senderId], references: [id])
   recipient   User     @relation("messageRecipient", fields: [recipientId], references: [id])

@@ -1,15 +1,19 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserService } from './user.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { GetChatDto } from './dto/get-chat.dto';
-import { GetMessageDto } from './dto/get-msgs.dto';
 import { FindChatDto } from './dto/find-chat.dto';
 
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}
+
+  @Get('chat/messages_count')
+  async getMessagesCount(@Req() req) {
+    return this.userService.getUserChatsUnreadMessagesCount(req.query.email);
+  }
 
   @Post('create')
   async create(@Body() user: CreateUserDto) {
@@ -33,11 +37,6 @@ export class UserController {
   @Post('chat/create')
   async createChat(@Body() body: CreateChatDto) {
     return this.userService.createChat(body.senderEmail, body.recipientEmail);
-  }
-
-  @Post('chat/messages')
-  async getMessages(@Body() body: GetMessageDto) {
-    return this.userService.getMessages(body.chatId);
   }
 
   @Post('chat/all')

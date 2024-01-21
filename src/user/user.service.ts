@@ -76,6 +76,8 @@ export class UserService {
     const newChat: Partial<Chat> = {
       firstUserId: sender.id,
       secondUserId: recipient.id,
+      firstUserEmail: sender.email,
+      secondUserEmail: recipient.email,
       creationDate: new Date(),
     };
     if (await this.db<Chat>('chats').insert(newChat)) {
@@ -93,6 +95,8 @@ export class UserService {
     if (!firstUser || !secondUser) {
       throw new HttpException('User not found', 404);
     }
+    console.log(firstUser);
+    console.log(secondUser);
     const result = await this.db<Chat>('chats')
       .select('*')
       .where('firstUserId', firstUser.id)
@@ -100,14 +104,29 @@ export class UserService {
       .orWhere('firstUserId', secondUser.id)
       .andWhere('secondUserId', firstUser.id)
       .first();
-    return result;
+    if (!result) {
+      return null;
+    }
+    const messages = await this.getMessages(result.id);
+    const chatWithMessages = {
+      ...result,
+      messages,
+    };
+    return chatWithMessages;
   }
 
   async getMessages(chatId: number): Promise<Message[]> {
+    await this.setMessagesRead(chatId);
     const result = await this.db<Message>('messages')
       .select('*')
       .where('chatId', chatId);
     return result;
+  }
+
+  async setMessagesRead(chatId: number): Promise<void> {
+    await this.db<Message>('messages')
+      .update({ isRead: true })
+      .where('chatId', chatId);
   }
 
   async getChats(email: string): Promise<Chat[]> {
@@ -119,6 +138,34 @@ export class UserService {
       .select('*')
       .where('firstUserId', user.id)
       .orWhere('secondUserId', user.id);
+    return result;
+  }
+
+  async getUserChatsUnreadMessagesCount(email: string): Promise<number[]> {
+    if (!email) throw new HttpException('Email not provided', 400);
+    const user = await this.findOne(email);
+    if (!user) {
+      throw new HttpException('User not found', 404);
+    }
+    const chats = await this.getChats(email);
+    const result = [];
+    for (const chat of chats) {
+      const count = await this.db<Message>('messages')
+        .count('id')
+        .where('chatId', chat.id)
+        .andWhere('recipientId', user.id)
+        .andWhere('isRead', false)
+        .first();
+      result.push({
+        chatId: chat.id,
+        recipientEmail: email,
+        senderEmail:
+          chat.firstUserEmail === email
+            ? chat.secondUserEmail
+            : chat.firstUserEmail,
+        unreadMessagesCount: count.count,
+      });
+    }
     return result;
   }
 }
